@@ -1,0 +1,429 @@
+//Set up Arduino 
+#include "DHT.h"
+#include <LiquidCrystal.h>
+#include <Servo.h>
+#include <Stepper.h>
+
+// Define humidity/temp type
+#define Type DHT11
+
+//Define notes - Take on Me - AHA
+#define NOTE_B0 31
+#define NOTE_C1 33
+#define NOTE_CS1 35
+#define NOTE_D1 37
+#define NOTE_DS1 39
+#define NOTE_E1 41
+#define NOTE_F1 44
+#define NOTE_FS1 46
+#define NOTE_G1 49
+#define NOTE_GS1 52
+#define NOTE_A1 55
+#define NOTE_AS1 58
+#define NOTE_B1 62
+#define NOTE_C2 65
+#define NOTE_CS2 69
+#define NOTE_D2 73
+#define NOTE_DS2 78
+#define NOTE_E2 82
+#define NOTE_F2 87
+#define NOTE_FS2 93
+#define NOTE_G2 98
+#define NOTE_GS2 104
+#define NOTE_A2 110
+#define NOTE_AS2 117
+#define NOTE_B2 123
+#define NOTE_C3 131
+#define NOTE_CS3 139
+#define NOTE_D3 147
+#define NOTE_DS3 156
+#define NOTE_E3 165
+#define NOTE_F3 175
+#define NOTE_FS3 185
+#define NOTE_G3 196
+#define NOTE_GS3 208
+#define NOTE_A3 220
+#define NOTE_AS3 233
+#define NOTE_B3 247
+#define NOTE_C4 262
+#define NOTE_CS4 277
+#define NOTE_D4 294
+#define NOTE_DS4 311
+#define NOTE_E4 330
+#define NOTE_F4 349
+#define NOTE_FS4 370
+#define NOTE_G4 392
+#define NOTE_GS4 415
+#define NOTE_A4 440
+#define NOTE_AS4 466
+#define NOTE_B4 494
+#define NOTE_C5 523
+#define NOTE_CS5 554
+#define NOTE_D5 587
+#define NOTE_DS5 622
+#define NOTE_E5 659
+#define NOTE_F5 698
+#define NOTE_FS5 740
+#define NOTE_G5 784
+#define NOTE_GS5 831
+#define NOTE_A5 880
+#define NOTE_AS5 932
+#define NOTE_B5 988
+#define NOTE_C6 1047
+#define NOTE_CS6 1109
+#define NOTE_D6 1175
+#define NOTE_DS6 1245
+#define NOTE_E6 1319
+#define NOTE_F6 1397
+#define NOTE_FS6 1480
+#define NOTE_G6 1568
+#define NOTE_GS6 1661
+#define NOTE_A6 1760
+#define NOTE_AS6 1865
+#define NOTE_B6 1976
+#define NOTE_C7 2093
+#define NOTE_CS7 2217
+#define NOTE_D7 2349
+#define NOTE_DS7 2489
+#define NOTE_E7 2637
+#define NOTE_F7 2794
+#define NOTE_FS7 2960
+#define NOTE_G7 3136
+#define NOTE_GS7 3322
+#define NOTE_A7 3520
+#define NOTE_AS7 3729
+#define NOTE_B7 3951
+#define NOTE_C8 4186
+#define NOTE_CS8 4435
+#define NOTE_D8 4699
+#define NOTE_DS8 4978
+#define REST 0
+
+// Initialize LCD with pins
+LiquidCrystal lcd(7, 8, 9, 10, 11, 12); // RS, E, D4, D5, D6, D7
+
+// Define LED pin
+#define LED_PIN 3
+
+// Define RGB pins
+int red = 4;
+int green = 5;
+int blue = 6;
+
+// Define button
+int button = 13;
+
+// Define buzzer
+int buzzer = 22;
+
+// Define servo
+Servo myServo; // Create a Servo object
+int servoPin = 46; // Define the pin for the servo
+
+// Define stepper
+const int stepsPerRevolution = 2048;
+Stepper stepper(stepsPerRevolution, 40, 36, 38, 34); //define pins, INT1,
+INT3, INT2, INT4
+bool rotateMotor360 = false;
+bool rotateMotor180 = false;
+bool rotateMotor90 = false;
+
+// Track button state and RGB colors
+int buttonState = 0;
+int lastButtonState = LOW;
+int colorState = 0; // 0 is off, 1:red, 2: blue, 3:green, 4:blink
+red-green-blue
+bool blinking = false;
+unsigned long previousMillis = 0;
+const long interval = 500; // Interval for blinking
+unsigned long buzzerStartTime = 0;
+const long buzzerDuration = 300; // Duration of buzzer sound in
+milliseconds
+
+// Set up humidity sensor for display
+int sensorPin = 2;
+DHT HT(sensorPin, Type);
+float humidity;
+float tempC;
+float tempF;
+int setTime = 500;
+int dt = 1000;
+bool automaticCheck = false;
+
+// Define melody and duration for the song
+int tempo = 258; // Take on me bpm = 170, with blinkRGB() it needs to be
+258 to deal with the delay of switching from light to sound
+int melody[] = {
+NOTE_FS5,8, NOTE_FS5,8,NOTE_D5,8, NOTE_B4,8, REST,8, NOTE_B4,8, REST,8,
+NOTE_E5,8,
+REST,8, NOTE_E5,8, REST,8, NOTE_E5,8, NOTE_GS5,8, NOTE_GS5,8, NOTE_A5,8,
+NOTE_B5,8,
+NOTE_A5,8, NOTE_A5,8, NOTE_A5,8, NOTE_E5,8, REST,8, NOTE_D5,8, REST,8,
+NOTE_FS5,8,
+REST,8, NOTE_FS5,8, REST,8, NOTE_FS5,8, NOTE_E5,8, NOTE_E5,8,
+NOTE_FS5,8, NOTE_E5,8,
+};
+int notes = sizeof(melody) / sizeof(melody[0]) / 2; //pitch and duration
+int wholenote = (60000 * 4) / tempo; //how long whole note is
+int divider = 0, noteDuration = 0;
+void setup() {
+
+// Humidity/Temp/LCD
+Serial.begin(9600);
+HT.begin();
+delay(setTime);
+lcd.begin(16, 2);
+
+// LED
+pinMode(LED_PIN, OUTPUT);
+
+// RGB
+pinMode(red, OUTPUT);
+pinMode(green, OUTPUT);
+pinMode(blue, OUTPUT);
+
+// Button
+pinMode(button, INPUT);
+
+// Buzzer
+pinMode(buzzer, OUTPUT);
+
+// Servo
+myServo.attach(servoPin); // Attach the servo to the specified pin
+myServo.write(0); // Set initial position of the servo to 0 degrees
+
+// Stepper
+stepper.setSpeed(10); //10rpm
+}
+void loop() {
+
+// LED
+analogWrite(LED_PIN, 50); // Turn the LED on
+
+// Humidity/Temp/LCD
+humidity = HT.readHumidity();
+tempC = HT.readTemperature();
+tempF = HT.readTemperature(true);
+lcd.setCursor(0, 0);
+lcd.print("Temp F= ");
+lcd.print(tempF);
+lcd.setCursor(0, 1);
+lcd.print("Humidity%= ");
+lcd.print(humidity);
+lcd.print(" %");
+Serial.print("Humidity: ");
+Serial.print(humidity);
+Serial.print("% Temperature ");
+Serial.print(tempC);
+Serial.print(" C ");
+Serial.print(tempF);
+Serial.println(" F ");
+
+// Button
+buttonState = digitalRead(button);
+
+// If button is pressed change RGB color and move servo
+if (buttonState == HIGH && lastButtonState == LOW) {
+handleButtonPress();
+lastButtonState = HIGH;
+} else if (buttonState == LOW && lastButtonState == HIGH) {
+lastButtonState = LOW;
+}
+
+// If blinking is enabled, blink red, green, and blue
+if (blinking) {
+if (millis() - previousMillis >= interval) {
+previousMillis = millis();
+blinkRGB();
+}
+}
+
+// Check if the buzzer duration has elapsed
+if (millis() - buzzerStartTime >= buzzerDuration) {
+stopBuzzer(); // Stop the buzzer after the specified duration
+}
+
+//If rotateMotor360 is enabled rotate motor
+if (rotateMotor360) {
+if (millis() - previousMillis >= interval) {
+previousMillis = millis();
+motor360();
+}
+}
+
+//If rotateMotor360 is enabled rotate motor
+if (rotateMotor180) {
+if (millis() - previousMillis >= interval) {
+previousMillis = millis();
+motor180();
+}
+}
+
+//If rotateMotor360 is enabled rotate motor
+if (rotateMotor90) {
+if (millis() - previousMillis >= interval) {
+previousMillis = millis();
+motor90();
+}
+}
+
+//If humidity is being it
+if (automaticCheck) {
+if (millis() - previousMillis >= interval) {
+previousMillis = millis();
+automatic();
+}
+}
+
+// Play the song and blink red, green, and blue
+if (colorState == 4) {
+playSong();
+blinkRGB();
+}
+}
+void handleButtonPress() {
+colorState++; // Increment color state
+if (colorState > 4) {
+colorState = 0; // Reset color state
+blinking = false; // Turn off blinking
+rotateMotor360 = false; //Turn off motor
+rotateMotor180 = false; //Turn off motor
+rotateMotor90 = false; //Turn off motor
+}
+switch (colorState) {
+case 0: // off
+digitalWrite(red, LOW);
+digitalWrite(green, LOW);
+digitalWrite(blue, LOW);
+myServo.write(0); // Move the servo to 0 degrees
+rotateMotor360 = false; //keep motor off
+rotateMotor180 = false;
+rotateMotor90 = false;
+automaticCheck = true; //have read humidity
+break;
+case 1: // red
+digitalWrite(red, 100);
+digitalWrite(green, 0);
+digitalWrite(blue, 0);
+myServo.write(30); // Move the servo to 30 degrees
+rotateMotor360 = true; //turn continuously
+rotateMotor180 = false;
+rotateMotor90 = false;
+automaticCheck = false;
+break;
+case 2: // blue
+digitalWrite(red, 0);
+digitalWrite(green, 0);
+digitalWrite(blue, 100);
+rotateMotor360 = false;
+rotateMotor180 = true; //turn 180, -180, 180 ...
+rotateMotor90 = false;
+automaticCheck = false;
+break;
+case 3: // green
+digitalWrite(red, 0);
+digitalWrite(green, 100);
+digitalWrite(blue, 0);
+rotateMotor360 = false;
+rotateMotor180 = false;
+rotateMotor90 = true; // turn 90, -90, 90 ...
+automaticCheck = false;
+break;
+case 4: // blink red, green, blue
+blinking = true;
+rotateMotor360 = false; //stationary
+rotateMotor180 = false;
+rotateMotor90 = false;
+automaticCheck = false;
+break;
+}
+startBuzzer(); // Beep every time the button is pressed
+}
+void blinkRGB() {
+static int state = 0;
+switch (state) {
+case 0: //red
+digitalWrite(red, 100);
+digitalWrite(green, 0);
+digitalWrite(blue, 0);
+break;
+case 1: //green
+digitalWrite(red, 0);
+digitalWrite(green, 100);
+digitalWrite(blue, 0);
+break;
+case 2: // blue
+digitalWrite(red, 0);
+digitalWrite(green, 0);
+digitalWrite(blue, 100);
+break;
+}
+state = (state + 1) % 3;
+}
+void startBuzzer() {
+digitalWrite(buzzer, HIGH); // Turn on the buzzer
+buzzerStartTime = millis(); // Record the start time of the buzzer
+}
+void stopBuzzer() {
+digitalWrite(buzzer, LOW); // Turn off the buzzer
+}
+void motor360() {
+
+//clockwise
+stepper.step(stepsPerRevolution);
+}
+void motor180() {
+
+//clockwise
+stepper.step(1229);
+
+//counterclockwise
+stepper.step(-1229);
+}
+void motor90() {
+
+//clockwise
+stepper.step(614);
+
+//counterclockwise
+stepper.step(-614);
+}
+void automatic() {
+if (humidity <= 30.0) {
+
+//if humidity is below 40% turn servo 30 degrees
+myServo.write(30);
+rotateMotor360 = true; //turn on stepper
+digitalWrite(red, 0); //RGB off
+digitalWrite(green, 0);
+digitalWrite(blue, 0);
+} else if (humidity >= 45.0) {
+
+//If humidity is above 50 % keepp servo at 0
+myServo.write(0);
+rotateMotor360 = false; //turn off stepper
+digitalWrite(red, 0);
+digitalWrite(green, 0);
+digitalWrite(blue, 0);
+}
+}
+
+// Function to play the song
+void playSong() {
+static unsigned long previousNoteMillis = 0;
+static int currentNote = 0;
+if (millis() - previousNoteMillis >= noteDuration) {
+previousNoteMillis = millis();
+if (currentNote < notes * 2) {
+divider = melody[currentNote + 1]; //note duration
+if (divider > 0) {
+noteDuration = (wholenote) / abs(divider);
+noteDuration *= 1.5; //dotted notes
+}
+tone(buzzer, melody[currentNote], noteDuration * 0.9); //play for 90% of duration
+currentNote += 2;
+} else {
+currentNote = 0;
+}
+}
+}
